@@ -1,0 +1,9 @@
+.idea/
+/reports
+/notebooks
+/data
+*.pdf
+*.png
+*.svg
+*.gv
+*.csv
