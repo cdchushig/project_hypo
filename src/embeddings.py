@@ -39,6 +39,7 @@ from sklearn.neural_network import MLPClassifier
 
 from utils.metrics import compute_classification_prestations
 
+
 def plot_with_matplotlib(x_vals, y_vals, labels):
     import matplotlib.pyplot as plt
     import random
@@ -215,11 +216,11 @@ print(df_data.head())
 
 # df_clean_medications = clean_all(df_medications, 'medications_post')
 
-bow_vectorizer = CountVectorizer(max_df=0.90, min_df=2, max_features=embedding_size)
+bow_vectorizer = CountVectorizer(max_df=0.90, min_df=4, max_features=embedding_size)
 m_bow_sparse = bow_vectorizer.fit_transform(df_data[var_name])
 
-tfidf_vectorizer = TfidfVectorizer(max_df=0.8, min_df=0.05, max_features=embedding_size)
-# tfidf_vectorizer = TfidfVectorizer(max_df=0.9, min_df=0.1)
+# tfidf_vectorizer = TfidfVectorizer(max_df=0.8, min_df=0.05, max_features=embedding_size)
+tfidf_vectorizer = TfidfVectorizer(max_df=0.9, min_df=0.1)
 # tfidf_vectorizer = TfidfVectorizer(ngram_range=(1, 2))
 # tfidf_vectorizer = TfidfVectorizer()
 m_tfidf_sparse = tfidf_vectorizer.fit_transform(df_data[var_name].values)
@@ -254,22 +255,21 @@ print(m_word2vec.shape)
 y_label = df_data['label'].values
 
 list_acc = []
+list_aucroc = []
 
 for idx in np.arange(1, 6, 1):
 
-    # x_train, x_test, y_train, y_test = train_test_split(m_bow, y_label, random_state=idx, test_size=0.2)
+    x_train, x_test, y_train, y_test = train_test_split(m_bow, y_label, random_state=idx, test_size=0.2)
     # x_train, x_test, y_train, y_test = train_test_split(m_tfidf, y_label, random_state=idx, test_size=0.2)
 
-    x_train, x_test, y_train, y_test = train_test_split(df_data.medcon.values, df_data.label.values, random_state=idx, test_size=0.2)
+    # x_train, x_test, y_train, y_test = train_test_split(df_data.medcon.values, df_data.label.values, random_state=idx, test_size=0.2)
 
-    # scaler1 = MinMaxScaler()
-    # scaler1.fit(x_train)
-    #
-    # scaler2 = MinMaxScaler()
-    # scaler2.fit(x_train)
-    #
-    # x_train = scaler1.fit_transform(x_train)
-    # x_test = scaler2.fit_transform(x_test)
+    scaler = StandardScaler()
+    scaler.fit(x_train)
+
+    scaler.fit(x_train)
+    x_train = scaler.transform(x_train)
+    x_test = scaler.transform(x_test)
 
     print('partition: ', idx, x_train.shape, y_train.shape, x_test.shape, y_test.shape)
 
@@ -342,6 +342,7 @@ for idx in np.arange(1, 6, 1):
         tuned_parameters = {
             'max_depth': range(2, 14, 2),
             'min_samples_split': range(lenght_15_percent_val, lenght_20_percent_val),
+            # 'min_samples_split': range(2, 40),
         }
 
         model_tree = DecisionTreeClassifier(random_state=idx)
@@ -356,9 +357,9 @@ for idx in np.arange(1, 6, 1):
     acc_val, specificity_val, recall_val, roc_auc_val = compute_classification_prestations(y_test, y_pred)
 
     list_acc.append(acc_val)
+    list_aucroc.append(roc_auc_val)
 
-acc_mean = np.mean(np.array(list_acc))
-acc_std = np.std(np.array(list_acc))
+print('acc: {}+{}'.format(np.mean(np.array(list_acc)), np.std(np.array(list_acc))))
+print('aucroc: {}+{}'.format(np.mean(np.array(list_acc)), np.std(np.array(list_acc))))
 
-print('acc: {}+{}'.format(acc_mean, acc_std))
 # print('acc: {}, specificity: {}, recall: {}, roc: {}'.format(acc_mean, acc_std))
