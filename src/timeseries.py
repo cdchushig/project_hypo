@@ -15,6 +15,7 @@ import plotly.express as px
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 import multiprocessing
+from ast import literal_eval
 import consts as consts
 
 
@@ -225,7 +226,7 @@ def select_glucose_days(df, agg_func='count', max_records=1100, n_seqs=4):
     return df_seqs_sum.sort_values(by=['patient_id', 'sum'], ascending=False).groupby(['patient_id']).first().reset_index()
 
 
-def resample_by_mins(dfp, freq_sampling='10min'):
+def resample_by_mins(dfp, patient_id, freq_sampling='10min'):
 
     print(dfp.sort_values(by=['mydate']))
 
@@ -236,7 +237,9 @@ def resample_by_mins(dfp, freq_sampling='10min'):
         count=('Glucose', 'count'), median=('Glucose', 'median'),
     ).reset_index()
 
-    print(dfx)
+    dfx['patient_id'] = patient_id
+
+    return dfx
 
 
 def plot_hist_glucose_days(df, sequence_id='ndays', agg_func='mean', flag_save_figure=True):
@@ -276,11 +279,29 @@ def preprocess_raw_cgm():
     df_ts_post.to_csv(path_cgm_pre_data, index=False)
 
 
-def create_datetime_cgm(df_ts):
+def create_datetime_cgm(df_ts: pd.DataFrame) -> pd.DataFrame:
     df_ts = create_sequence_by_columns(df_ts)
     df_ts_pre = rescale_days(df_ts)
     df_ts_post = build_datestamp(df_ts_pre)
     return df_ts_post
+
+
+def preprocess_cgm_new_freq(df_ts: pd.DataFrame, df_selected_seqs: pd.DataFrame, freq_sampling='10min') -> pd.DataFrame:
+
+    list_dfs = []
+
+    for patient_id in df_selected_seqs['patient_id'].unique():
+        seq_str = df_selected_seqs.loc[df_selected_seqs['patient_id'] == patient_id, 'seq'].iat[0]
+        list_seq_days = list(literal_eval(seq_str))
+        print('patient_id: {}, seq: {}'.format(patient_id, list_seq_days))
+        dfp = df_ts[(df_ts['PtID'] == patient_id) & (df_ts['DeviceDaysFromEnroll'].isin(list_seq_days))]
+        dfp = create_datetime_cgm(dfp)
+        dfp_resampled = resample_by_mins(dfp, patient_id=patient_id, freq_sampling='10min')
+        list_dfs.append(dfp_resampled)
+
+    df_concat = pd.concat(list_dfs)
+
+    return df_concat
 
 
 path_cgm_pre_data = str(Path.joinpath(consts.PATH_PROJECT_DATA_PRE, 'bbdd_cgm_pre.csv'))
@@ -292,12 +313,12 @@ print(df_ts)
 # plot_hist_glucose_days(df_ts, sequence_id='DeviceDaysFromEnroll', agg_func='count', flag_save_figure=False)
 # plot_glucose_patients(df_ts, flag_save_figure=True)
 
-df_records_patients = select_glucose_days(df_ts, agg_func='count', max_records=964, n_seqs=5)
-print(df_records_patients.sort_values(by=['sum'], ascending=False))
+df_seqs_patients = select_glucose_days(df_ts, agg_func='count', max_records=964, n_seqs=5)
+print(df_seqs_patients.sort_values(by=['sum'], ascending=False))
 
-dfp = df_ts[(df_ts['PtID'] == 52) & (df_ts['DeviceDaysFromEnroll'].isin([1, 2, 3, 4, 5]))]
-dfp = create_datetime_cgm(dfp)
-resample_by_mins(dfp)
+df_concat = preprocess_cgm_new_freq(df_ts, df_seqs_patients)
+
+print(df_concat)
 
 # print(df_ts_post)
 #
