@@ -7,3 +7,5 @@ PATH_PROJECT_DATA_PREPROCESSED = Path.joinpath(PATH_PROJECT_DIR, 'data', 'prepro
 
 PATH_PROJECT_FIGURES = Path.joinpath(PATH_PROJECT_DIR, 'reports', 'figures')
 PATH_PROJECT_FS = Path.joinpath(PATH_PROJECT_DIR, 'reports', 'fs')
+
+PATH_PROJECT_REPORTS_EFA = Path.joinpath(PATH_PROJECT_DIR, 'reports', 'efa')
