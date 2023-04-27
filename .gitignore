@@ -1,4 +1,9 @@
+*.pyc*
+*.pyo
+*.pyd
+*.so
 .idea/
+
 /reports
 /data
 *.pdf
@@ -7,3 +12,5 @@
 *.gv
 *.csv
 *.pyc
+
+venv38/
