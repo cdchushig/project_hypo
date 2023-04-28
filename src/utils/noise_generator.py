@@ -49,7 +49,6 @@ class NoiseGenerator(object):
     def _masking_noise_reload(self, X, v):
         x_noise = X.copy()
         v = v / 100.0
-        print('kkkkkkk', v)
 
         x_noise[np.random.rand(*x_noise.shape) < v] *= 0
 

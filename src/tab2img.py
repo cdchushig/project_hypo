@@ -5,6 +5,10 @@ import seaborn as sns
 from pathlib import Path
 import utils.consts as consts
 from utils.noise_generator import NoiseGenerator
+from utils.loader import get_categorical_numerical_var_names, identify_type_features
+import itertools
+from scipy.stats import pointbiserialr, spearmanr
+from phik import phik_from_array
 
 
 def plot_hists_real_noisy_var(df):
@@ -26,10 +30,71 @@ def plot_hists_real_noisy_var(df):
     plt.show()
 
 
+def plot_corr_mixed_dataset(df_corr, figsize=(8, 8)):
+
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.heatmap(df_corr,
+                cmap=sns.diverging_palette(220, 10, as_cmap=True),
+                vmin=-1.0, vmax=1.0,
+                annot=True, fmt=".2f",
+                square=True, ax=ax)
+    plt.show()
+
+
+def compute_corr_mixed_dataset(df_data, target_col_id):
+
+    df_features = df_data.drop(columns=[target_col_id])
+
+    list_discrete_vars, list_cont_vars = get_categorical_numerical_var_names(df_features)
+    df_features_info = identify_type_features(df_features)
+
+    print('d', list_discrete_vars)
+    print('c', list_cont_vars)
+    print(df_features_info)
+
+    n_samples, n_features = df_features.shape[0], df_features.shape[1]
+
+    # pairs = list(itertools.combinations(range(n_features), 2))
+    pairs = list(itertools.combinations_with_replacement(range(n_features), 2))
+
+    m_corr = np.zeros((n_features, n_features))
+
+    for i, j in pairs:
+        x_var_name = df_features_info.index[i]
+        y_var_name = df_features_info.index[j]
+
+        x_var = df_features.loc[:, x_var_name]
+        y_var = df_features.loc[:, y_var_name]
+
+        if df_features_info['type'][i] == 'c':
+            if df_features_info['type'][j] == 'c':
+                pair_corr = spearmanr(x_var, y_var).statistic
+            else:
+                pair_corr = pointbiserialr(x_var, y_var).statistic
+        else:  # categorical
+            if df_features_info['type'][j] == 'c':
+                pair_corr = pointbiserialr(x_var, y_var).statistic
+            else:
+                pair_corr = phik_from_array(x_var, y_var)
+
+        print(x_var_name, y_var_name, pair_corr)
+
+        m_corr[i, j] = pair_corr
+        m_corr[j, i] = pair_corr
+
+    v_var_names = df_features.columns.values
+    df_corr = pd.DataFrame(m_corr, columns=v_var_names)
+    df_corr = df_corr.set_index(v_var_names)
+
+    return df_corr
+
+
 seed_value = 3232
 
 df_data = pd.read_csv(str(Path.joinpath(consts.PATH_PROJECT_DATA, 'others', 'bbdd_steno.csv')), sep=',')
-print(df_data)
+
+df_corr = compute_corr_mixed_dataset(df_data, 'label')
+plot_corr_mixed_dataset(df_corr, figsize=(8, 8))
 
 v_sex = df_data.loc[:, 'sex'].values.reshape(-1, 1)
 
@@ -42,6 +107,6 @@ df_real_noisy = pd.DataFrame(m_real_noisy)
 
 print(df_real_noisy)
 
-plot_hists_real_noisy_var(df_real_noisy)
+# plot_hists_real_noisy_var(df_real_noisy)
 
 

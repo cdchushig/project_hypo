@@ -4,7 +4,7 @@ from pathlib import Path
 import logging
 import coloredlogs
 from collections import Counter
-
+import math
 import utils.consts as consts
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,51 @@ def load_train_test_set_by_partition(id_partition: int, disease: str, type_encod
     df_y_test = pd.read_csv(str(Path.joinpath(path_dataset, 'y_test_{}{}.csv'.format(type_encoding, id_partition))),
                             header=None)
 
+
+def load_raw_dataset(bbdd_name: str) -> pd.DataFrame:
+    df_data = None
+    if bbdd_name in consts.LISTS_BBDD_CLINICAL:
+        df_data = pd.read_csv(str(Path.joinpath(consts.PATH_PROJECT_DATA_RAW, bbdd_name, 'bbdd_{}.csv'.format(bbdd_name))))
+    else:
+        ValueError('Dataset not found!')
+
+    return df_data
+
+
+def load_preprocessed_dataset(bbdd_name: str, show_info=False) -> (np.array, np.array, np.array, list, list):
+
+    df_data = None
+
+    if bbdd_name in consts.LISTS_BBDD_CLINICAL or bbdd_name in consts.LISTS_BBDD_GENERAL:
+        df_data = pd.read_csv(str(Path.joinpath(consts.PATH_PROJECT_DATA_PREPROCESSED, 'bbdd_{}.csv'.format(bbdd_name))))
+    else:
+        ValueError('Dataset not found!')
+
+    y_label = df_data['label'].values
+    df_features = df_data.drop(['label'], axis=1)
+    v_column_names = df_features.columns.values
+    m_features = df_features.values
+
+    list_vars_categorical, list_vars_numerical = get_categorical_numerical_names(df_features, bbdd_name)
+
+    if show_info:
+        logger.info('n_samples: {}, n_features: {}'.format(df_features.shape[0], df_features.shape[1]))
+        logger.info('Classes: {}, # samples: {}'.format(np.unique(y_label, return_counts=True)[0],
+                                                        np.unique(y_label, return_counts=True)[1]))
+        logger.info('List of numerical features {}, total: {}'.format(list_vars_numerical, len(list_vars_numerical)))
+        logger.info('List of categorical features {}, total: {}'.format(list_vars_categorical, len(list_vars_categorical)))
+
+    return m_features, y_label, v_column_names, list_vars_categorical, list_vars_numerical
+    # return m_features, y_label, v_column_names
+
+
+def get_categorical_numerical_var_names(df_data: pd.DataFrame) -> (list, list):
+
+    df_info = identify_type_features(df_data)
+    list_numerical_vars = list(df_info[df_info['type'] == consts.TYPE_FEATURE_CONTINUOUS].index)
+    list_categorical_vars = list(df_info[df_info['type'] == consts.TYPE_FEATURE_DISCRETE].index)
+
+    return list_categorical_vars, list_numerical_vars
 
 
 def identify_type_features(df, discrete_threshold=10, debug=False):
@@ -76,77 +121,4 @@ def identify_type_features(df, discrete_threshold=10, debug=False):
     return feature_info
 
 
-def load_raw_dataset(bbdd_name: str) -> pd.DataFrame:
-    df_data = None
-    if bbdd_name in consts.LISTS_BBDD_CLINICAL:
-        df_data = pd.read_csv(str(Path.joinpath(consts.PATH_PROJECT_DATA_RAW, bbdd_name, 'bbdd_{}.csv'.format(bbdd_name))))
-    else:
-        ValueError('Dataset not found!')
 
-    return df_data
-
-
-def load_preprocessed_dataset(bbdd_name: str, show_info=False) -> (np.array, np.array, np.array, list, list):
-
-    df_data = None
-
-    if bbdd_name in consts.LISTS_BBDD_CLINICAL or bbdd_name in consts.LISTS_BBDD_GENERAL:
-        df_data = pd.read_csv(str(Path.joinpath(consts.PATH_PROJECT_DATA_PREPROCESSED, 'bbdd_{}.csv'.format(bbdd_name))))
-    else:
-        ValueError('Dataset not found!')
-
-    y_label = df_data['label'].values
-    df_features = df_data.drop(['label'], axis=1)
-    v_column_names = df_features.columns.values
-    m_features = df_features.values
-
-    list_vars_categorical, list_vars_numerical = get_categorical_numerical_names(df_features, bbdd_name)
-
-    if show_info:
-        logger.info('n_samples: {}, n_features: {}'.format(df_features.shape[0], df_features.shape[1]))
-        logger.info('Classes: {}, # samples: {}'.format(np.unique(y_label, return_counts=True)[0],
-                                                        np.unique(y_label, return_counts=True)[1]))
-        logger.info('List of numerical features {}, total: {}'.format(list_vars_numerical, len(list_vars_numerical)))
-        logger.info('List of categorical features {}, total: {}'.format(list_vars_categorical, len(list_vars_categorical)))
-
-    return m_features, y_label, v_column_names, list_vars_categorical, list_vars_numerical
-    # return m_features, y_label, v_column_names
-
-
-
-#
-# x_features, y_label, v_feature_names, list_vars_categorical, list_vars_numerical = load_preprocessed_dataset(consts.BBDD_FRAM)
-# df_features = pd.DataFrame(x_features, columns=v_feature_names)
-#
-# df_features_info = identify_type_features(df_features)
-# print(df_features)
-# print(df_features_info)
-#
-# num_samples, num_features = df_features.shape[0], df_features.shape[1]
-#
-# pairs = list(itertools.combinations(range(num_features), 2))
-#
-# for i, j in pairs:
-#     x_var_name = df_features_info.index[i]
-#     y_var_name = df_features_info.index[j]
-#
-#     x_var = df_features.loc[:, x_var_name]
-#     y_var = df_features.loc[:, y_var_name]
-#
-#     df_vars = pd.DataFrame(np.c_[x_var, y_var, y_label], columns=[x_var_name, y_var_name, 'label'])
-#
-#     if df_features_info['type'][i] == 'c':
-#         if df_features_info['type'][j] == 'c':
-#             sns.jointplot(data=df_vars, x=x_var_name, y=y_var_name, hue='label')
-#         else:
-#             print('holi')
-#     else:  # categorical
-#         if df_features_info['type'][j] == 'c':
-#             sns.stripplot(data=df_vars, x=x_var_name, y=y_var_name, jitter=True, hue='label', dodge=True)
-#         else:
-#             df_crosstab = pd.crosstab(df_vars[x_var_name], df_vars[y_var_name])
-#             # sex_class_normalized = pd.crosstab(df_vars[x_var_name], df_vars[y_var_name], normalize=True) * 100
-#             sns.heatmap(df_crosstab, cmap='Blues', square=True, annot=True, fmt='g')
-#
-#
-#     plt.show()
